@@ -181,50 +181,17 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
         # dropout
         self.dropout = torch.nn.Dropout(p=1. - dp_keep_prob)
 
-        # r_t
-        self.w_r = clones(torch.nn.Linear(hidden_size, hidden_size), self.num_layers - 1)
-        self.w_r.insert(0, torch.nn.Linear(emb_size, hidden_size))
-        self.u_r = clones(torch.nn.Linear(hidden_size, hidden_size, False), self.num_layers)
+        self.gru = torch.nn.GRU(self.emb_size, self.hidden_size, self.num_layers, dropout=1.-dp_keep_prob, bidirectional=False)
 
-        # z_t
-        self.w_z = clones(torch.nn.Linear(hidden_size, hidden_size), self.num_layers - 1)
-        self.w_z.insert(0, torch.nn.Linear(emb_size, hidden_size))
-        self.u_z = clones(torch.nn.Linear(hidden_size, hidden_size, False), self.num_layers)
-
-        # h_t
-        self.w_h = clones(torch.nn.Linear(hidden_size, hidden_size), self.num_layers - 1)
-        self.w_h.insert(0, torch.nn.Linear(emb_size, hidden_size))
-        self.u_h = clones(torch.nn.Linear(hidden_size, hidden_size, False), self.num_layers)
-
-        # y
-        self.w_y = torch.nn.Linear(hidden_size, vocab_size)
-
-        # self.gru = torch.nn.GRU(self.emb_size, self.hidden_size, self.num_layers, dropout=1.-dp_keep_prob, bidirectional=False)
+        self.w_y = torch.nn.Linear(self.hidden_size, self.vocab_size)
 
     def init_weights_uniform(self):
         # TODO ========================
         self.emb.weigh.data.uniform_(-0.1, 0.1)
 
-        k = np.sqrt(1. / self.hidden_size)
-        for i in range(self.num_layers):
-            # initialize parameters for r_t
-            torch.nn.init.uniform_(self.w_r[i].weight, -k, k)
-            torch.nn.init.uniform_(self.w_r[i].bias, -k, k)
-            torch.nn.init.uniform_(self.u_r[i].weight, -k, k)
-
-            # initialize parameters for w_z
-            torch.nn.init.uniform_(self.w_z[i].weight, -k, k)
-            torch.nn.init.uniform_(self.w_z[i].bias, -k, k)
-            torch.nn.init.uniform_(self.u_z[i].weight, -k, k)
-
-            # initialize parameters for h
-            torch.nn.init.uniform_(self.w_h[i].weight, -k, k)
-            torch.nn.init.uniform_(self.w_h[i].bias, -k, k)
-            torch.nn.init.uniform_(self.u_h[i].weight, -k, k)
-
-            # initialize parameters for y
-            torch.nn.init.uniform_(self.w_y.weight, -0.1, 0.1)
-            torch.nn.init.uniform_(self.w_y.bias, 0.)
+        # initialize parameters for y
+        torch.nn.init.uniform_(self.w_y.weight, -0.1, 0.1)
+        torch.nn.init.uniform_(self.w_y.bias, 0.)
 
     def init_hidden(self):
         # TODO ========================
@@ -232,39 +199,10 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
 
     def forward(self, inputs, hidden):
         # TODO ========================
-        logits = []
-        """for t in range(self.seq_len):
-            h_in = self.emb(inputs[t])
-            new_hidden = []
-
-            for i in range(self.num_layers):
-                h_in = self.dropout(h_in)
-                r_t = torch.sigmoid(self.w_r[i](h_in) + self.u_r[i](hidden[i]))
-                z_t = torch.sigmoid(self.w_z[i](h_in) + self.u_z[i](hidden[i]))
-                h_tilde = torch.tanh(self.w_h[i](h_in) + self.u_h[i](r_t * hidden[i]))
-                h_t = (1. - z_t) * hidden[i] + z_t * h_tilde
-                new_hidden.append(h_t)
-                h_in = h_t
-
-            out = self.dropout(new_hidden[-1])
-            hidden = torch.stack(new_hidden)
-            # hidden = torch.cat(new_hidden).view(self.num_layers, self.batch_size, self.hidden_size)
-            logits.append(self.w_y(out))
-
-        # logits = torch.stack(logits)
-        logits = torch.cat(logits)"""
-        h_in = self.emb(inputs)
-        h_in = self.dropout(h_in)
-        new_hidden = []
-        for i in range(self.num_layers):
-            r_t = torch.sigmoid(self.w_r[i](h_in) + self.u_r[i](hidden[i]))
-            z_t = torch.sigmoid(self.w_z[i](h_in) + self.u_z[i](hidden[i]))
-            h_tilde = torch.tanh(self.w_h[i](h_in) + self.u_h[i](r_t * hidden[i]))
-            h_t = (1. - z_t) * hidden[i] + z_t * h_tilde
-            new_hidden.append(h_t)
-            h_in = h_t
-        h_in = self.dropout(h_in)
-        logits = self.w_y(h_in)
+        inp = self.emb(inputs)
+        inp = self.dropout(inp)
+        out, hidden = self.gru(inp)
+        logits = self.w_y(self.dropout(out))
 
         return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
