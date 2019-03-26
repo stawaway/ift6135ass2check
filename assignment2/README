@@ -1,0 +1,4 @@
+This is to show that even the pytorch implementation did not work properly somehow on our machine. The pytorch version even has two biases per hidden layer and it is still poor. You can find the code to run the experiment in this folder (note that this is only for the GRU network). There is also the saved model included with it. It might be a good idea to look at our code carefully in the Latex report has I am 99% sure that there is no bug and yet, we could not reproduce yourresults. Note that we had CUDA 9.1.85 and Torch 1.0.1port2 and python 3.6
+
+Cheers,
+William
